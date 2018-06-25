@@ -48,6 +48,8 @@ const MSG_TYPE_REQUEST_PLAYERS = "request all players";
 const MSG_TYPE_SEND_PLAYERS = "send all players";
 const MSG_TYPE_REQUEST_NAME = "request player name";
 const MSG_TYPE_SEND_NAME = "send player name";
+const MSG_TYPE_REQUEST_FINISHED_SETUP = "request finished setup";
+const MSG_TYPE_SEND_FINISHED_SETUP = "send finished setup";
 let lastTime = Date.now();
 let cooldown = false;
 
@@ -55,6 +57,7 @@ wss.on('connection', function connection(ws) {
   ws.id = makeUsername();
   ws.position={};
   ws.position.x=100,ws.position.y=100;
+  ws.finishedSetup = false;
   console.log("%s Connected to server",ws.id);
   // for pinging connection
   ws.isAlive = true;
@@ -95,6 +98,12 @@ wss.on('connection', function connection(ws) {
       }
       ws.send(JSON.stringify(msg));
     }
+    else if(userMsg.type==MSG_TYPE_SEND_FINISHED_SETUP){
+      if(userMsg.text){
+        console.log("%s finished setup",ws.id);
+        ws.finishedSetup = true;
+      }
+    }
   });
 
 });
@@ -120,10 +129,14 @@ function allClientPositionJSON(){
 setInterval(() => {
   wss.clients.forEach((client) => {
     try{
-    client.send(JSON.stringify(allClientPositionJSON()));
+      if(client.readyState===client.OPEN){
+        if(!client.finishedSetup)
+          client.send(JSON.stringify(createMsg(MSG_TYPE_REQUEST_FINISHED_SETUP,"")))
+        client.send(JSON.stringify(allClientPositionJSON()));
+      }
     }catch(e){console.log(e)};
   });
-}, 20);
+}, 4);
 
 
 function msgClientPosition(ws){

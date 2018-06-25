@@ -19,6 +19,8 @@ const MSG_TYPE_REQUEST_PLAYERS = "request all players";
 const MSG_TYPE_SEND_PLAYERS = "send all players";
 const MSG_TYPE_REQUEST_NAME = "request player name";
 const MSG_TYPE_SEND_NAME = "send player name";
+const MSG_TYPE_REQUEST_FINISHED_SETUP = "request finished setup";
+const MSG_TYPE_SEND_FINISHED_SETUP = "send finished setup";
 let playerName = "";
 
 // message from server
@@ -27,28 +29,44 @@ ws.onmessage = function(event){
 
   // update all player positions
   if(parsedMsg.type==MSG_TYPE_POSITION_ALL){
-    parsedMsg.msg.forEach((otherPlayer)=>{
-      if(otherPlayer.id!=playerName){
-        otherSprites[otherPlayer.id].position.x=otherPlayer.x;
-        otherSprites[otherPlayer.id].position.y=otherPlayer.y;
-      }
-    });
+    if(ws.readyState===ws.OPEN && finishedSetup){
+      parsedMsg.msg.forEach((otherPlayer)=>{
+        if(otherPlayer.id!=playerName){
+          otherSprites[otherPlayer.id].position.x=otherPlayer.x;
+          otherSprites[otherPlayer.id].position.y=otherPlayer.y;
+        }
+      });
+    }
   }
   // new connection => create new sprite
   else if(parsedMsg.type==MSG_TYPE_NEW_CONNECTION){
-    newPlayer(parsedMsg.text);
+    if(ws.readyState===ws.OPEN && finishedSetup){
+      console.log("OPEN connection");
+      newPlayer(parsedMsg.text);
+    }
   }
   // received after client requests all players
   else if(parsedMsg.type==MSG_TYPE_SEND_PLAYERS){
     parsedMsg.msg.forEach((player)=>{
       if(player!=playerName){
-        newPlayer(player);
+        if(ws.readyState===ws.OPEN && finishedSetup){
+          console.log("OPEN2 connection");
+          newPlayer(player);
+        }
       }
     });
   }
   // received after client requests name
   else if(parsedMsg.type==MSG_TYPE_SEND_NAME){
     playerName = parsedMsg.text;
+  }
+  else if(parsedMsg.type==MSG_TYPE_REQUEST_FINISHED_SETUP){
+    loadTextures();
+    const msg={
+      type: MSG_TYPE_SEND_FINISHED_SETUP,
+      text: finishedSetup
+    }
+    ws.send(JSON.stringify(msg));
   }
 }
 
@@ -95,15 +113,28 @@ const speed = 5;
 let moveDirection = null;
 let lastTime = Date.now();
 let tickCooldown = false;
+let finishedSetup = false;
+let loadingFiles = false;
 
 const KEYCODE_W = 87, KEYCODE_A = 65, KEYCODE_S = 83, KEYCODE_D = 68;
 const keyW=keyboard(KEYCODE_W), keyA=keyboard(KEYCODE_A), keyS=keyboard(KEYCODE_S),
       keyD=keyboard(KEYCODE_D);
 let keys = [keyW,keyA,keyS,keyD];
-PIXI.loader
-  .add(["red-square.png",
-      "blue-square.png"])
-  .load(setup);
+
+loadTextures();
+
+function loadTextures(){
+  if(ws.readyState===ws.OPEN && finishedSetup===false && !loadingFiles){
+    console.log("open connection and finished setup");
+    loadingFiles = true;
+    PIXI.loader
+      .add(["red-square.png",
+            "blue-square.png"])
+      .load(setup);
+  }
+  else if(ws.readyState!==ws.OPEN) console.log("connection not open");
+  else if(finishedSetup) console.log("finished setup");
+}
 
 // init
 function setup(){
@@ -120,6 +151,8 @@ function setup(){
   requestName();
 
   requestPlayers();
+  finishedSetup = true;
+  loadingFiles = false;
 
 }
 
@@ -134,7 +167,7 @@ function mainLoop(delta){
 
   //update every 100 ms
   const currTime = Date.now();
-  if(currTime - lastTime > 100){
+  if(currTime - lastTime > 10){
     tickCooldown = true;
     lastTime = currTime;
   }
