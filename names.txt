@@ -1,0 +1,50 @@
+parakeet
+waterbuck
+zebra
+salamander
+guanaco
+mandrill
+capybara
+dung beetle
+chinchilla
+bison
+springbok
+pony
+cheetah
+warthog
+puppy
+bald eagle
+moose
+deer
+hartebeest
+gopher
+mouse
+sheep
+vicuna
+dog
+cow
+eland
+hippopotamus
+snowy owl
+weasel
+musk-ox
+pronghorn
+boar
+elephant
+mule
+parrot
+baboon
+dingo
+crow
+argali
+buffalo
+chicken
+bull
+toad
+bunny
+ground hog
+thorny devil
+lamb
+silver fox
+beaver
+crocodile
