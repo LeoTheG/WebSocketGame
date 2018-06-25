@@ -119,7 +119,9 @@ function allClientPositionJSON(){
 // update player positions on client
 setInterval(() => {
   wss.clients.forEach((client) => {
+    try{
     client.send(JSON.stringify(allClientPositionJSON()));
+    }catch(e){console.log(e)};
   });
 }, 20);
 
