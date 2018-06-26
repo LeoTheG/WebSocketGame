@@ -21,6 +21,7 @@ const MSG_TYPE_REQUEST_NAME = "request player name";
 const MSG_TYPE_SEND_NAME = "send player name";
 const MSG_TYPE_REQUEST_FINISHED_SETUP = "request finished setup";
 const MSG_TYPE_SEND_FINISHED_SETUP = "send finished setup";
+const MSG_TYPE_SEND_CHAT = "send player chat";
 let playerName = "";
 
 // message from server
@@ -31,9 +32,9 @@ ws.onmessage = function(event){
   if(parsedMsg.type==MSG_TYPE_POSITION_ALL){
     if(ws.readyState===ws.OPEN && finishedSetup){
       parsedMsg.msg.forEach((otherPlayer)=>{
-        if(otherPlayer.id!=playerName){
-          otherSprites[otherPlayer.id].position.x=otherPlayer.x;
-          otherSprites[otherPlayer.id].position.y=otherPlayer.y;
+        if(otherPlayer.id!=playerName && otherPlayers[otherPlayer.id]){
+          otherPlayers[otherPlayer.id].sprite.position.x=otherPlayer.x;
+          otherPlayers[otherPlayer.id].sprite.position.y=otherPlayer.y;
         }
       });
     }
@@ -45,20 +46,18 @@ ws.onmessage = function(event){
       newPlayer(parsedMsg.text);
     }
   }
-  // received after client requests all players
+  // received after the client requests all players
   else if(parsedMsg.type==MSG_TYPE_SEND_PLAYERS){
     parsedMsg.msg.forEach((player)=>{
       if(player!=playerName){
         if(ws.readyState===ws.OPEN && finishedSetup){
-          console.log("OPEN2 connection");
           newPlayer(player);
         }
       }
     });
   }
-  // received after client requests name
+  // received after the client requests name
   else if(parsedMsg.type==MSG_TYPE_SEND_NAME){
-    console.log("got send name");
     playerName = parsedMsg.text;
   }
   // received periodically to check for finished setup
@@ -70,15 +69,34 @@ ws.onmessage = function(event){
     }
     ws.send(JSON.stringify(msg));
   }
+  // received after a client sends a message
+  else if(parsedMsg.type==MSG_TYPE_SEND_CHAT){
+    const id = parsedMsg.msg.id;
+    otherPlayers[id].chatObj.text=parsedMsg.msg.chat;
+  }
 }
 
 // used when user is connected for first time
 function newPlayer(playerID){
+
   newSprite = new PIXI.Sprite(PIXI.loader.resources["red-square.png"].texture);
   app.stage.addChild(newSprite);
-  otherSprites[playerID] = newSprite;
+
+
+  // create new other player object
+  if(otherPlayers.indexOf(playerID)<0){
+    otherPlayers[playerID] = {}
+  }
+  otherPlayers[playerID].sprite = newSprite;
   newSprite.position.x=100;
   newSprite.position.y=100;
+  otherPlayers[playerID].chatObj = new PIXI.Text("",{fontFamily: 'Arial', fontSize: 24, fill: 0x000000, align:'center'});
+
+  otherPlayers[playerID].usernameTextObj = new PIXI.Text(playerID,{fontFamily: 'Arial', fontSize: 24, fill: 0x000000, align:'center'});
+  otherPlayers[playerID].usernameTextObj.position.x=otherPlayers[playerID].sprite.x - otherPlayers[playerID].usernameTextObj.text.length*3;
+  otherPlayers[playerID].usernameTextObj.position.y=otherPlayers[playerID].sprite.y + 20;
+  app.stage.addChild(otherPlayers[playerID].usernameTextObj);
+  app.stage.addChild(otherPlayers[playerID].chatObj);
 }
 
 // called upon first connection, requests name from server
@@ -97,6 +115,7 @@ function requestPlayers(){
   ws.send(JSON.stringify(msg));
 }
 
+// for sending player's position to server
 function msgPlayerPosition(){
   const msg = {
     position : {
@@ -111,7 +130,7 @@ function msgPlayerPosition(){
 // game script -------
 let app = new PIXI.Application({width: 1280, height: 720});
 let playerSprite = null;
-let otherSprites = [];
+let otherPlayers = [];
 const speed = 5;
 let moveDirection = null;
 let lastTime = Date.now();
@@ -121,10 +140,10 @@ let loadingFiles = false;
 let isTyping = false;
 
 const KEYCODE_W = 87, KEYCODE_A = 65, KEYCODE_S = 83, KEYCODE_D = 68, KEYCODE_T = 84,
-      KEYCODE_ENTER=13, KEYCODE_BACKSPACE=8;
+      KEYCODE_ENTER=13, KEYCODE_BACKSPACE=8, KEYCODE_SHIFT=16, KEYCODE_0=48,KEYCODE_1=49;
 const keyW=keyboard(KEYCODE_W), keyA=keyboard(KEYCODE_A), keyS=keyboard(KEYCODE_S),
       keyD=keyboard(KEYCODE_D), keyT=keyboard(KEYCODE_T), keyEnter=keyboard(KEYCODE_ENTER),
-      keyBackspace=keyboard(KEYCODE_BACKSPACE);
+      keyBackspace=keyboard(KEYCODE_BACKSPACE), keyShift=keyboard(KEYCODE_SHIFT);
 let keys = [keyW,keyA,keyS,keyD,keyT];
 let typingKeys = [];
 let typingText = "";
@@ -144,8 +163,19 @@ for(var i = 32; i<=126; i++){
       if(typingText=="" && !newTextPressedT && newKey.code==KEYCODE_T){
         newTextPressedT=true;
       }
-      else 
+      else if(keyShift.isDown && newKey.code>=48 && newKey.code<=57){
+        console.log("shift is down with " + String.fromCharCode(newKey.code).toLowerCase());
+        switch(newKey.code){
+          case KEYCODE_0:
+            typingText+=")";
+            break;
+          case KEYCODE_1:
+            typingText+="!";
+        }
+      }
+      else{
         typingText+=String.fromCharCode(newKey.code).toLowerCase();
+      }
     }
   }
   typingKeys.push(newKey); 
@@ -164,7 +194,16 @@ function loadTextures(){
   else if(ws.readyState!==ws.OPEN) console.log("connection not open");
   else if(finishedSetup) console.log("finished setup");
 }
-
+/*
+keyShift.press=()=>{
+  if(isTyping){
+  for(var i in typingKeys){
+    if(typingKeys[i].code==KEYCODE_0 && typingKeys[i].isDown){
+      typingKeys[i]
+    }
+  }
+}
+*/
 keyT.press = ()=>{
   if(!isTyping)
     displayPlayerTyping();
@@ -177,6 +216,11 @@ keyBackspace.press=()=>{
 keyEnter.press = ()=>{
   if(isTyping){
     isTyping = false;
+    const msg = {
+      type: MSG_TYPE_SEND_CHAT,
+      msg: typingText
+    }
+    ws.send(JSON.stringify(msg));
   }
 }
 
@@ -202,7 +246,7 @@ function setup(){
   playerSprite.position.y=100;
 
   // for display player text above sprite
-  playerTextObj = new PIXI.Text("",{fontFamily: 'Arial', fontSize: 24, fill: 0xff1010, align:'center'});
+  playerTextObj = new PIXI.Text("",{fontFamily: 'Arial', fontSize: 24, fill: 0x000000, align:'center'});
 
   requestName();
 
@@ -232,6 +276,7 @@ function mainLoop(delta){
   else{
     tickCooldown = false;
   }
+  if(keyShift.isDown) console.log("shift is down");
 
   if((keyW.isDown||keyA.isDown||keyS.isDown||keyD.isDown) && tickCooldown && !isTyping){
     ws.send(msgPlayerPosition());
@@ -246,6 +291,16 @@ function mainLoop(delta){
   playerTextObj.position.x=playerSprite.x - playerTextObj.text.length*3;
   playerTextObj.position.y=playerSprite.y-40;
   playerTextObj.text = typingText;
+  
+  for(let otherKey in otherPlayers){
+    other = otherPlayers[otherKey];
+    if(other.chatObj && other.sprite && other.usernameTextObj){
+      other.chatObj.position.x=other.sprite.x - other.chatObj.text.length*3;
+      other.chatObj.position.y=other.sprite.y - 40;
+      other.usernameTextObj.position.x=other.sprite.x - other.usernameTextObj.text.length*3;
+      other.usernameTextObj.position.y=other.sprite.y + 60;
+    }
+  }
 
 };
 

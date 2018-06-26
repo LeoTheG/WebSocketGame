@@ -50,6 +50,7 @@ const MSG_TYPE_REQUEST_NAME = "request player name";
 const MSG_TYPE_SEND_NAME = "send player name";
 const MSG_TYPE_REQUEST_FINISHED_SETUP = "request finished setup";
 const MSG_TYPE_SEND_FINISHED_SETUP = "send finished setup";
+const MSG_TYPE_SEND_CHAT = "send player chat";
 let lastTime = Date.now();
 let cooldown = false;
 
@@ -57,6 +58,7 @@ wss.on('connection', function connection(ws) {
   ws.id = makeUsername();
   ws.position={};
   ws.position.x=100,ws.position.y=100;
+  ws.chat="";
   ws.finishedSetup = false;
   console.log("%s Connected to server",ws.id);
   // for pinging connection
@@ -104,9 +106,49 @@ wss.on('connection', function connection(ws) {
         ws.finishedSetup = true;
       }
     }
+    // update all clients upon receiving new message
+    else if(userMsg.type==MSG_TYPE_SEND_CHAT){
+      ws.chat = userMsg.msg;
+      const chatMsg = JSON.stringify(clientChatJSON(ws));
+      // send chat message to all other clients
+      wss.clients.forEach((client)=>{
+        if(client.id!=ws.id)
+          client.send(chatMsg);
+      });
+    }
   });
 
 });
+
+function clientChatJSON(client){
+  const msg = {
+    type: MSG_TYPE_SEND_CHAT,
+    msg: {
+      chat: client.chat,
+      id: client.id
+    }
+  }
+  return msg;
+}
+
+// creates JSON of all clients and chats
+// currently not in use
+function allClientChatJSON(){
+  let jsonObj = {
+    type: MSG_TYPE_MSG_TYPE_SEND_CHAT,
+    msg: []
+  };
+  wss.clients.forEach((client)=>{
+    let obj = {
+      id: client.id,
+      chat: client.chat
+    }
+    jsonObj["msg"].push(obj);
+  });
+  return jsonObj;
+}
+
+
 // creates JSON of all clients and x,y positions
 function allClientPositionJSON(){
   let jsonObj = {
