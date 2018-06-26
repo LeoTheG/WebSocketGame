@@ -51,6 +51,7 @@ const MSG_TYPE_SEND_NAME = "send player name";
 const MSG_TYPE_REQUEST_FINISHED_SETUP = "request finished setup";
 const MSG_TYPE_SEND_FINISHED_SETUP = "send finished setup";
 const MSG_TYPE_SEND_CHAT = "send player chat";
+const MSG_TYPE_PLAYER_DISCONNECT = "player disconnect";
 let lastTime = Date.now();
 let cooldown = false;
 
@@ -205,7 +206,13 @@ const ping = setInterval(()=>{
     if(ws.readyState==ws.OPEN) ws.ping();
     else ws.isAlive = false;
     if(ws.isAlive === false){
-      sendAll("server-message",ws.id +" has disconnected");
+      const msg = {
+        type: MSG_TYPE_PLAYER_DISCONNECT,
+        id: ws.id
+      }
+      wss.clients.forEach((client)=>{
+        client.send(JSON.stringify(msg));
+      });
       removeClient(ws);
       return;
     }

@@ -22,6 +22,7 @@ const MSG_TYPE_SEND_NAME = "send player name";
 const MSG_TYPE_REQUEST_FINISHED_SETUP = "request finished setup";
 const MSG_TYPE_SEND_FINISHED_SETUP = "send finished setup";
 const MSG_TYPE_SEND_CHAT = "send player chat";
+const MSG_TYPE_PLAYER_DISCONNECT = "player disconnect";
 let playerName = "";
 
 // message from server
@@ -73,6 +74,21 @@ ws.onmessage = function(event){
   else if(parsedMsg.type==MSG_TYPE_SEND_CHAT){
     const id = parsedMsg.msg.id;
     otherPlayers[id].chatObj.text=parsedMsg.msg.chat;
+  }
+  else if(parsedMsg.type==MSG_TYPE_PLAYER_DISCONNECT){
+    const id = parsedMsg.id;
+    for(var key in otherPlayers){
+      if(key==id){
+        console.log("key="+id);
+        if(otherPlayers[id])console.log("element exists to delete");
+        app.stage.removeChild(otherPlayers[id].sprite);
+        app.stage.removeChild(otherPlayers[id].usernameTextObj);
+        app.stage.removeChild(otherPlayers[id].chatObj);
+        delete otherPlayers[id];
+        if(otherPlayers[id])console.log("after, element exists to delete");
+        else console.log("after, element does not exist to delete");
+      }
+    }
   }
 }
 
@@ -288,17 +304,19 @@ function mainLoop(delta){
     if(keyS.isDown)playerSprite.y+=speed*delta;
     if(keyD.isDown)playerSprite.x+=speed*delta;
   }
+  // positioning player chat message
   playerTextObj.position.x=playerSprite.x - playerTextObj.text.length*3;
   playerTextObj.position.y=playerSprite.y-40;
   playerTextObj.text = typingText;
   
+  // positioning other player messages and usernames
   for(let otherKey in otherPlayers){
     other = otherPlayers[otherKey];
     if(other.chatObj && other.sprite && other.usernameTextObj){
       other.chatObj.position.x=other.sprite.x - other.chatObj.text.length*3;
       other.chatObj.position.y=other.sprite.y - 40;
       other.usernameTextObj.position.x=other.sprite.x - other.usernameTextObj.text.length*3;
-      other.usernameTextObj.position.y=other.sprite.y + 60;
+      other.usernameTextObj.position.y=other.sprite.y + 70;
     }
   }
 
