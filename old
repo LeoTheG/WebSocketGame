@@ -24,7 +24,6 @@ const MSG_TYPE_SEND_FINISHED_SETUP = "send finished setup";
 const MSG_TYPE_SEND_CHAT = "send player chat";
 const MSG_TYPE_PLAYER_DISCONNECT = "player disconnect";
 let playerName = "";
-let finishedSetup = false;
 
 // message from server
 ws.onmessage = function(event){
@@ -149,8 +148,10 @@ let app = new PIXI.Application({width: 1280, height: 720});
 let playerSprite = null;
 let otherPlayers = [];
 const speed = 5;
+let moveDirection = null;
 let lastTime = Date.now();
 let tickCooldown = false;
+let finishedSetup = false;
 let loadingFiles = false;
 let isTyping = false;
 
@@ -160,14 +161,12 @@ const KEYCODE_W = 87, KEYCODE_A = 65, KEYCODE_S = 83, KEYCODE_D = 68, KEYCODE_T 
 const keyW=keyboard(KEYCODE_W), keyA=keyboard(KEYCODE_A), keyS=keyboard(KEYCODE_S),
       keyD=keyboard(KEYCODE_D), keyT=keyboard(KEYCODE_T), keyEnter=keyboard(KEYCODE_ENTER),
       keyBackspace=keyboard(KEYCODE_BACKSPACE), keyShift=keyboard(KEYCODE_SHIFT),keyF=keyboard(KEYCODE_F);
-const DIRECTION_UP="up", DIRECTION_RIGHT="right",DIRECTION_LEFT="left",DIRECTION_DOWN="down";
 let keys = [keyW,keyA,keyS,keyD,keyT];
 let typingKeys = [];
 let typingText = "";
 let playerTextObj = null;
 let newTextPressedT = false;
 let finishedRotation = false;
-let moveDirection = DIRECTION_RIGHT;
 
 loadTextures();
 
@@ -283,24 +282,8 @@ function setup(){
 // Game render loop
 function mainLoop(delta){
 
-  switch(moveDirection){
-    case DIRECTION_RIGHT:
-      swordSprite.x=playerSprite.x+playerSprite.width+5;
-      swordSprite.y=playerSprite.y+playerSprite.height/2;
-      break;
-    case DIRECTION_LEFT:
-      swordSprite.x=playerSprite.x-5;
-      swordSprite.y=playerSprite.y+playerSprite.height/2;
-      break;
-    case DIRECTION_UP:
-      swordSprite.x=playerSprite.x+playerSprite.width/2;
-      swordSprite.y=playerSprite.y-5;
-      break;
-    case DIRECTION_DOWN:
-      swordSprite.x=playerSprite.x+playerSprite.width/2;
-      swordSprite.y=playerSprite.y+playerSprite.height+5;
-      break;
-  }
+  swordSprite.x=playerSprite.x+playerSprite.width+5;
+  swordSprite.y=playerSprite.y+playerSprite.height/2;
   if(!finishedRotation){
     swordSprite.rotation += 0.10*delta;
     console.log("Hasnt finished rotation, rotating now");
@@ -332,22 +315,10 @@ function mainLoop(delta){
   }
 
   if(!isTyping){
-    if(keyW.isDown){
-     playerSprite.y-=speed*delta; 
-     moveDirection = DIRECTION_UP;
-    }
-    if(keyA.isDown){
-      playerSprite.x-=speed*delta;
-      moveDirection = DIRECTION_LEFT;
-    }
-    if(keyS.isDown){
-      playerSprite.y+=speed*delta;
-      moveDirection = DIRECTION_DOWN;
-    }
-    if(keyD.isDown){
-      playerSprite.x+=speed*delta;
-      moveDirection = DIRECTION_RIGHT;
-    }
+    if(keyW.isDown)playerSprite.y-=speed*delta;
+    if(keyA.isDown)playerSprite.x-=speed*delta;
+    if(keyS.isDown)playerSprite.y+=speed*delta;
+    if(keyD.isDown)playerSprite.x+=speed*delta;
   }
   // positioning player chat message
   playerTextObj.position.x=playerSprite.x - playerTextObj.text.length*3;
